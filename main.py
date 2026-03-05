@@ -267,13 +267,63 @@ def serve_index():
 def open_browser():
     webbrowser.open("http://127.0.0.1:3210/")
     
-if __name__ == "__main__":
-    threading.Timer(1.0, open_browser).start()
+def run_auto_test(num_games=100, size=16, bombs=40):
+    print(f"--- BẮT ĐẦU TEST TỰ ĐỘNG: {num_games} trận, Map {size}x{size}, {bombs} bom ---")
+    wins = 0
+    losses = 0
 
-    uvicorn.run(
-        "main:app",
-        host="127.0.0.1",
-        port=3210,
-        reload=True
-    )
-    
+    for i in range(num_games):
+        # Khởi tạo game mới
+        test_game = Game(board_size=size, bomb_count=bombs)
+
+        while not test_game.game_over:
+            board_state = test_game.get_board_state()
+            # Gọi hàm solve từ AI.py
+            action, r, c = solve(board_state, test_game.available_flags)
+
+            if action == "none":
+                break
+            elif action == "flag":
+                test_game.flag(r, c)
+            elif action == "reveal":
+                result = test_game.reveal(r, c)
+                if result == CustomNotif.GAME_WON:
+                    wins += 1
+                elif result == CustomNotif.FOUND_BOMB:
+                    losses += 1
+
+        if (i + 1) % 10 == 0:
+            print(f"Đã chạy {i + 1}/{num_games} trận...")
+
+    win_rate = (wins / num_games) * 100
+    print(f"\n--- KẾT QUẢ CUỐI CÙNG ---")
+    print(f"Thắng: {wins}")
+    print(f"Thua: {losses}")
+    print(f"Tỉ lệ thắng: {win_rate:.2f}%")
+
+
+if __name__ == "__main__":
+    mode = input("Chọn chế độ (1: Web, 2: Auto-Test): ")
+    if mode == "1":
+        threading.Timer(1.0, open_browser).start()
+        uvicorn.run("main:app", host="127.0.0.1", port=3210, reload=True)
+    else:
+        print("\n--- CHỌN CẤU HÌNH TEST ---")
+        print("1. Small  (9x9, 10 bom)")
+        print("2. Medium (16x16, 40 bom)")
+        print("3. Large  (30x16, 99 bom)")
+        print("4. Custom (Tùy chỉnh)")
+
+        choice = input("Lựa chọn của bạn: ")
+        n = int(input("Nhập số trận muốn test (ví dụ 50): "))
+
+        if choice == "1":
+            run_auto_test(num_games=n, size=9, bombs=10)
+        elif choice == "2":
+            run_auto_test(num_games=n, size=16, bombs=40)
+        elif choice == "3":
+            run_auto_test(num_games=n, size=30, bombs=99)
+        else:
+            s = int(input("Nhập kích thước (Size): "))
+            b = int(input("Nhập số bom: "))
+            run_auto_test(num_games=n, size=s, bombs=b)
